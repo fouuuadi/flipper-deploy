@@ -1,0 +1,8 @@
+CREATE TABLE game_events (
+    id SERIAL PRIMARY KEY,
+    game_id INTEGER NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    points INTEGER NOT NULL DEFAULT 0,
+    occured_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (game_id) REFERENCES games(id)
+);

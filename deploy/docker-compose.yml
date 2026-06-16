@@ -1,0 +1,122 @@
+# Stack complète du flipper virtuel, lancée par la borne Fliphetic.
+# Tout est tiré d'images publiées (aucun build sur la borne) :
+#   - 3 fronts nginx (un par écran)  → ghcr.io/fouuuadi/flipper-front-<screen>
+#   - backend FastAPI                → ghcr.io/fouuuadi/flipper-backend
+#   - db / redis / mqtt              → images publiques
+#
+# Les 3 fronts proxifient /api et /ws vers le service `backend` (même origine),
+# donc seuls eux exposent un port (éphémère). Les secrets (mot de passe DB)
+# sont injectés par le dashboard de la borne via variables d'environnement.
+name: flipper
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flipper}
+      POSTGRES_USER: ${POSTGRES_USER:-flipper_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flipper_password}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Schéma initial (mirroir de Flipper_back/db/init — garder synchro).
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flipper_user} -d ${POSTGRES_DB:-flipper}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/broker/version' -C 1 -W 3 -i healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/fouuuadi/flipper-backend:${BACKEND_IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      APP_PORT: "8080"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-flipper}
+      DB_USER: ${POSTGRES_USER:-flipper_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-flipper_password}
+      REDIS_URL: redis://redis:6379
+      MQTT_BROKER_HOST: mqtt
+      MQTT_BROKER_PORT: "1883"
+      MQTT_TOPIC_FILTER: "flipper/#"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  playfield:
+    image: ghcr.io/fouuuadi/flipper-front-playfield:${FRONT_IMAGE_TAG:-main-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "0:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backglass:
+    image: ghcr.io/fouuuadi/flipper-front-backglass:${FRONT_IMAGE_TAG:-main-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "0:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  dmd:
+    image: ghcr.io/fouuuadi/flipper-front-dmd:${FRONT_IMAGE_TAG:-main-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "0:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  db_data:
