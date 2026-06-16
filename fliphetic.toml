@@ -1,0 +1,21 @@
+[app]
+id          = "flipper-cabinet"
+name        = "Flipper Virtuel — HETIC"
+authors     = ["Fouad"]
+description = "Flipper virtuel 3D temps réel : 3 écrans (playfield, backglass, DMD) servis par nginx, backend FastAPI + Redis + Postgres + broker MQTT. Tout est tiré d'images publiées sur GHCR."
+
+[deploy]
+strategy = "branch"
+ref      = "main"
+
+# Chaque écran pointe vers son service front (port DU CONTENEUR = 8080).
+[screens]
+playfield = { service = "playfield", port = 8080 }
+backglass = { service = "backglass", port = 8080 }
+dmd       = { service = "dmd", port = 8080 }
+
+[compose]
+file          = "deploy/docker-compose.yml"
+# Généreux : la borne pull plusieurs images + Postgres applique les scripts
+# d'init avant que le backend ne devienne healthy.
+ready_timeout = 90
