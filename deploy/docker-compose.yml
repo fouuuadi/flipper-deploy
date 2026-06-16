@@ -49,6 +49,9 @@ services:
 
   backend:
     image: ghcr.io/fouuuadi/flipper-backend:${BACKEND_IMAGE_TAG:-latest}
+    # Images publiées en linux/amd64 uniquement → forçage explicite (natif sur
+    # la borne x86, émulé sur un Mac Apple Silicon en dev).
+    platform: linux/amd64
     pull_policy: always
     restart: unless-stopped
     environment:
@@ -71,13 +74,14 @@ services:
       mqtt:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   playfield:
     image: ghcr.io/fouuuadi/flipper-front-playfield:${FRONT_IMAGE_TAG:-main-latest}
+    platform: linux/amd64
     pull_policy: always
     restart: unless-stopped
     depends_on:
@@ -85,13 +89,14 @@ services:
     ports:
       - "0:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   backglass:
     image: ghcr.io/fouuuadi/flipper-front-backglass:${FRONT_IMAGE_TAG:-main-latest}
+    platform: linux/amd64
     pull_policy: always
     restart: unless-stopped
     depends_on:
@@ -99,13 +104,14 @@ services:
     ports:
       - "0:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 5
 
   dmd:
     image: ghcr.io/fouuuadi/flipper-front-dmd:${FRONT_IMAGE_TAG:-main-latest}
+    platform: linux/amd64
     pull_policy: always
     restart: unless-stopped
     depends_on:
@@ -113,7 +119,7 @@ services:
     ports:
       - "0:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 3s
       retries: 5
