@@ -34,6 +34,11 @@ avant l'override). Conséquence :
 - **Topologie réseau** (`DB_HOST=db`, `DB_PORT`, `REDIS_URL`, `MQTT_BROKER_*`,
   `APP_PORT`, `REDIS_SESSION_TTL_SECONDS`, `MQTT_TOPIC_FILTER`) → **littéral** dans
   le compose : c'est le câblage du réseau Docker, pas de la config.
+- **Identifiant borne** (`BORNE_ID`) → **littéral** dans le compose, **pas** au
+  dashboard. Il doit correspondre au `VITE_BORNE_ID` gravé **au build** des images
+  front (défaut `flipper-cabinet-1`) : c'est le canal WebSocket partagé par les 3
+  écrans. Au dashboard, un mismatch empêcherait les écrans de se rejoindre. Pour
+  changer d'id : rebuild des fronts avec `VITE_BORNE_ID` + même valeur dans le compose.
 
 Variables à créer dans le dashboard (l'image postgres lit `POSTGRES_*`, le backend
 lit `DB_*` → le mot de passe est sous deux noms, même valeur) :

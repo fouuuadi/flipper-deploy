@@ -69,6 +69,13 @@ services:
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: "1883"
       MQTT_TOPIC_FILTER: "flipper/#"
+      # Identifiant du canal borne partagé par les 3 écrans. LITTÉRAL (pas
+      # dashboard) car il DOIT correspondre au VITE_BORNE_ID gravé au build des
+      # images front (défaut "flipper-cabinet-1"). Le mettre au dashboard
+      # risquerait un mismatch → les écrans ne rejoindraient jamais le même
+      # canal. Pour changer d'id : rebuild des fronts avec VITE_BORNE_ID + même
+      # valeur ici.
+      BORNE_ID: "flipper-cabinet-1"
       # DB_NAME, DB_USER, DB_PASSWORD, LOG_LEVEL : fournis par le dashboard
       # Fliphetic (override au Load), sans interpolation compose. Absents →
       # ValidationError pydantic au démarrage (fail-fast).
