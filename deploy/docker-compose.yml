@@ -13,21 +13,19 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      # Non-secrets : valeurs littérales. Pas d'interpolation : le dashboard
-      # Fliphetic injecte dans les conteneurs, pas dans le process compose,
-      # donc une interpolation au parse ne verrait jamais ses valeurs.
-      POSTGRES_DB: flipper
-      POSTGRES_USER: flipper_user
-      # POSTGRES_PASSWORD : SEUL secret, injecté par le dashboard Fliphetic
-      # directement dans le conteneur (ne PAS le déclarer ici). Si absent,
-      # l'image postgres refuse de s'initialiser → fail-fast.
+    # POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD : fournis par le dashboard
+    # Fliphetic, qui écrit un docker-compose.override.yml au Load. Pas de bloc
+    # `environment:` ici, et SURTOUT pas d'interpolation compose : elle tourne
+    # au parse, avant que l'override n'applique ses valeurs. Si le dashboard ne
+    # les fournit pas → postgres refuse de s'initialiser (fail-fast).
     volumes:
       - db_data:/var/lib/postgresql/data
       # Schéma initial (mirroir de Flipper_back/db/init — garder synchro).
       - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flipper_user -d flipper"]
+      # $$VAR : échappé pour compose → le shell DANS le conteneur lit la valeur
+      # injectée par le dashboard au runtime (pas d'interpolation compose).
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,9 +58,9 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
-      # Topologie interne (noms de services du réseau Docker) + constantes
-      # applicatives : valeurs littérales, fixées par ce compose, pas de la
-      # config de déploiement → ne se mettent pas dans le dashboard.
+      # SEULE la topologie réseau (noms de services Docker) + constantes reste
+      # littérale : c'est le câblage du compose, pas de la config — la mettre au
+      # dashboard casserait le réseau.
       APP_PORT: "8080"
       DB_HOST: db
       DB_PORT: "5432"
@@ -71,12 +69,9 @@ services:
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: "1883"
       MQTT_TOPIC_FILTER: "flipper/#"
-      DB_NAME: flipper
-      DB_USER: flipper_user
-      LOG_LEVEL: INFO
-      # DB_PASSWORD : SEUL secret, injecté par le dashboard Fliphetic directement
-      # dans le conteneur (ne PAS le déclarer ici). Absent → l'app lève une
-      # ValidationError au démarrage (fail-fast).
+      # DB_NAME, DB_USER, DB_PASSWORD, LOG_LEVEL : fournis par le dashboard
+      # Fliphetic (override au Load), sans interpolation compose. Absents →
+      # ValidationError pydantic au démarrage (fail-fast).
     depends_on:
       db:
         condition: service_healthy

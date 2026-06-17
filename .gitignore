@@ -3,3 +3,6 @@
 !.env.example
 .DS_Store
 *.log
+# Override local (config/secrets de test) — imite l'override généré par Fliphetic
+docker-compose.override.yml
+deploy/docker-compose.override.yml

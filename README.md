@@ -23,24 +23,35 @@ seuls eux exposent un port — la borne y branche ses 3 écrans Chromium.
 
 ## Variables d'environnement
 
-Le dashboard Fliphetic **injecte les variables dans les conteneurs** (au runtime),
-pas dans le process `docker compose` — l'interpolation `${...}` du compose ne les
-verrait donc pas. Conséquence :
+Au **Load**, Fliphetic écrit un `docker-compose.override.yml` qui pose les
+`environment:` des conteneurs (cf. `fliphetic/docs/architecture.md`). C'est un
+**merge d'override**, pas de l'interpolation : le compose de base ne doit donc
+**pas** utiliser `${VAR}` pour ces variables (l'interpolation tourne au parse,
+avant l'override). Conséquence :
 
-- **Non-secrets** (`POSTGRES_DB`, `POSTGRES_USER`, `DB_*`, topologie réseau,
-  `LOG_LEVEL`, ports…) → **valeurs littérales** dans `deploy/docker-compose.yml`.
-- **Secret** (le mot de passe) → **injecté par le dashboard**, non déclaré dans le
-  compose. Le backend lit `DB_PASSWORD` et l'image postgres lit `POSTGRES_PASSWORD`,
-  donc il faut le fournir sous **les deux noms** (même valeur) :
+- **Config + secret** (`POSTGRES_*`, `DB_*`, `LOG_LEVEL`) → **dans le dashboard**,
+  pas dans le repo. Le compose de base ne les déclare pas.
+- **Topologie réseau** (`DB_HOST=db`, `DB_PORT`, `REDIS_URL`, `MQTT_BROKER_*`,
+  `APP_PORT`, `REDIS_SESSION_TTL_SECONDS`, `MQTT_TOPIC_FILTER`) → **littéral** dans
+  le compose : c'est le câblage du réseau Docker, pas de la config.
 
-| Variable dashboard | Conteneur | Rôle |
-|--------------------|-----------|------|
-| `POSTGRES_PASSWORD` | `db` | mot de passe superuser Postgres |
-| `DB_PASSWORD` | `backend` | mot de passe de connexion DB du backend |
+Variables à créer dans le dashboard (l'image postgres lit `POSTGRES_*`, le backend
+lit `DB_*` → le mot de passe est sous deux noms, même valeur) :
 
-Si l'une manque → fail-fast (postgres refuse de s'initialiser / le backend lève une
-`ValidationError`).
+| Variable | Conteneur | Valeur |
+|----------|-----------|--------|
+| `POSTGRES_DB` | db | `flipper` |
+| `POSTGRES_USER` | db | `flipper_user` |
+| `POSTGRES_PASSWORD` | db | *(secret)* |
+| `DB_NAME` | backend | `flipper` |
+| `DB_USER` | backend | `flipper_user` |
+| `DB_PASSWORD` | backend | *(même secret)* |
+| `LOG_LEVEL` | backend | `INFO` |
 
+> Tu peux aussi les laisser toutes en *all containers* (chaque conteneur ignore
+> celles qu'il ne lit pas). Si une variable manque → fail-fast (postgres ou
+> pydantic refusent de démarrer).
+>
 > Tags d'images optionnels (interpolés, avec défaut) : `FRONT_IMAGE_TAG`
 > (`main-latest`), `BACKEND_IMAGE_TAG` (`latest`).
 >
@@ -48,11 +59,34 @@ Si l'une manque → fail-fast (postgres refuse de s'initialiser / le backend lè
 
 ## Tester en local
 
-```bash
-cp .env.example .env          # ajuste POSTGRES_PASSWORD
-docker compose -f deploy/docker-compose.yml config   # valide le compose
-docker compose -f deploy/docker-compose.yml up        # pull + démarre tout
+Comme sur la borne, la config vient d'un **override** (le compose de base n'a pas
+ces variables). Crée un `deploy/docker-compose.override.yml` (gitignored) qui imite
+ce que Fliphetic génère :
+
+```yaml
+services:
+  db:
+    environment:
+      POSTGRES_DB: flipper
+      POSTGRES_USER: flipper_user
+      POSTGRES_PASSWORD: change-me
+  backend:
+    environment:
+      DB_NAME: flipper
+      DB_USER: flipper_user
+      DB_PASSWORD: change-me
+      LOG_LEVEL: INFO
 ```
+
+```bash
+cd deploy
+docker compose config   # valide (override auto-chargé car même dossier, sans -f)
+docker compose up        # pull + démarre tout
+```
+
+> L'auto-chargement de `docker-compose.override.yml` ne marche **que** sans `-f`
+> (depuis le dossier `deploy/`). Si tu tiens à `-f`, passe les deux fichiers :
+> `-f deploy/docker-compose.yml -f deploy/docker-compose.override.yml`.
 
 Puis ouvre l'un des ports éphémères affichés (`docker compose ... ps`) — chaque
 front sert son écran à la racine `/`.
