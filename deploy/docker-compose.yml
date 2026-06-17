@@ -14,18 +14,20 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      # Toutes obligatoires : aucune valeur par défaut. Si le dashboard ne les
-      # injecte pas, le déploiement échoue explicitement (fail-fast) au lieu de
-      # démarrer sur une config silencieusement fausse.
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant (à définir dans le dashboard Fliphetic)}
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant (à définir dans le dashboard Fliphetic)}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant (à définir dans le dashboard Fliphetic)}
+      # Non-secrets : valeurs littérales. Pas d'interpolation : le dashboard
+      # Fliphetic injecte dans les conteneurs, pas dans le process compose,
+      # donc une interpolation au parse ne verrait jamais ses valeurs.
+      POSTGRES_DB: flipper
+      POSTGRES_USER: flipper_user
+      # POSTGRES_PASSWORD : SEUL secret, injecté par le dashboard Fliphetic
+      # directement dans le conteneur (ne PAS le déclarer ici). Si absent,
+      # l'image postgres refuse de s'initialiser → fail-fast.
     volumes:
       - db_data:/var/lib/postgresql/data
       # Schéma initial (mirroir de Flipper_back/db/init — garder synchro).
       - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flipper_user} -d ${POSTGRES_DB:-flipper}"]
+      test: ["CMD-SHELL", "pg_isready -U flipper_user -d flipper"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,11 +71,12 @@ services:
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: "1883"
       MQTT_TOPIC_FILTER: "flipper/#"
-      # Injectées par le dashboard Fliphetic, sans défaut (fail-fast si absentes).
-      DB_NAME: ${POSTGRES_DB:?POSTGRES_DB manquant (à définir dans le dashboard Fliphetic)}
-      DB_USER: ${POSTGRES_USER:?POSTGRES_USER manquant (à définir dans le dashboard Fliphetic)}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant (à définir dans le dashboard Fliphetic)}
-      LOG_LEVEL: ${LOG_LEVEL:?LOG_LEVEL manquant (à définir dans le dashboard Fliphetic)}
+      DB_NAME: flipper
+      DB_USER: flipper_user
+      LOG_LEVEL: INFO
+      # DB_PASSWORD : SEUL secret, injecté par le dashboard Fliphetic directement
+      # dans le conteneur (ne PAS le déclarer ici). Absent → l'app lève une
+      # ValidationError au démarrage (fail-fast).
     depends_on:
       db:
         condition: service_healthy

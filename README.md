@@ -23,19 +23,28 @@ seuls eux exposent un port — la borne y branche ses 3 écrans Chromium.
 
 ## Variables d'environnement
 
-Injectées par le dashboard de la borne (ou un `.env` local — voir `.env.example`) :
+Le dashboard Fliphetic **injecte les variables dans les conteneurs** (au runtime),
+pas dans le process `docker compose` — l'interpolation `${...}` du compose ne les
+verrait donc pas. Conséquence :
 
-| Variable | Secret | Défaut | Rôle |
-|----------|--------|--------|------|
-| `POSTGRES_PASSWORD` | **oui** | `flipper_password` | mot de passe Postgres |
-| `POSTGRES_DB` | non | `flipper` | nom de base |
-| `POSTGRES_USER` | non | `flipper_user` | utilisateur Postgres |
-| `FRONT_IMAGE_TAG` | non | `main-latest` | tag des images front |
-| `BACKEND_IMAGE_TAG` | non | `latest` | tag de l'image backend |
-| `LOG_LEVEL` | non | `INFO` | niveau de log backend |
+- **Non-secrets** (`POSTGRES_DB`, `POSTGRES_USER`, `DB_*`, topologie réseau,
+  `LOG_LEVEL`, ports…) → **valeurs littérales** dans `deploy/docker-compose.yml`.
+- **Secret** (le mot de passe) → **injecté par le dashboard**, non déclaré dans le
+  compose. Le backend lit `DB_PASSWORD` et l'image postgres lit `POSTGRES_PASSWORD`,
+  donc il faut le fournir sous **les deux noms** (même valeur) :
 
-> ⚠️ Ne jamais committer de `.env` (gitignored). Sur la borne, `POSTGRES_PASSWORD`
-> doit être fourni par le dashboard.
+| Variable dashboard | Conteneur | Rôle |
+|--------------------|-----------|------|
+| `POSTGRES_PASSWORD` | `db` | mot de passe superuser Postgres |
+| `DB_PASSWORD` | `backend` | mot de passe de connexion DB du backend |
+
+Si l'une manque → fail-fast (postgres refuse de s'initialiser / le backend lève une
+`ValidationError`).
+
+> Tags d'images optionnels (interpolés, avec défaut) : `FRONT_IMAGE_TAG`
+> (`main-latest`), `BACKEND_IMAGE_TAG` (`latest`).
+>
+> ⚠️ Ne jamais committer de `.env` (gitignored).
 
 ## Tester en local
 
