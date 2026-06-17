@@ -14,9 +14,12 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-flipper}
-      POSTGRES_USER: ${POSTGRES_USER:-flipper_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flipper_password}
+      # Toutes obligatoires : aucune valeur par défaut. Si le dashboard ne les
+      # injecte pas, le déploiement échoue explicitement (fail-fast) au lieu de
+      # démarrer sur une config silencieusement fausse.
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant (à définir dans le dashboard Fliphetic)}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant (à définir dans le dashboard Fliphetic)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant (à définir dans le dashboard Fliphetic)}
     volumes:
       - db_data:/var/lib/postgresql/data
       # Schéma initial (mirroir de Flipper_back/db/init — garder synchro).
@@ -55,17 +58,22 @@ services:
     pull_policy: always
     restart: unless-stopped
     environment:
+      # Topologie interne (noms de services du réseau Docker) + constantes
+      # applicatives : valeurs littérales, fixées par ce compose, pas de la
+      # config de déploiement → ne se mettent pas dans le dashboard.
       APP_PORT: "8080"
       DB_HOST: db
       DB_PORT: "5432"
-      DB_NAME: ${POSTGRES_DB:-flipper}
-      DB_USER: ${POSTGRES_USER:-flipper_user}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-flipper_password}
       REDIS_URL: redis://redis:6379
+      REDIS_SESSION_TTL_SECONDS: "1800"
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: "1883"
       MQTT_TOPIC_FILTER: "flipper/#"
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Injectées par le dashboard Fliphetic, sans défaut (fail-fast si absentes).
+      DB_NAME: ${POSTGRES_DB:?POSTGRES_DB manquant (à définir dans le dashboard Fliphetic)}
+      DB_USER: ${POSTGRES_USER:?POSTGRES_USER manquant (à définir dans le dashboard Fliphetic)}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant (à définir dans le dashboard Fliphetic)}
+      LOG_LEVEL: ${LOG_LEVEL:?LOG_LEVEL manquant (à définir dans le dashboard Fliphetic)}
     depends_on:
       db:
         condition: service_healthy
