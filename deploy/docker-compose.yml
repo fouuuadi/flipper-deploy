@@ -74,6 +74,11 @@ services:
       MQTT_BROKER_HOST: mqtt
       MQTT_BROKER_PORT: "1883"
       MQTT_TOPIC_FILTER: "flipper/#"
+      # Entrées physiques de la borne (boutons / plunger ESP32). LITTÉRAL ici,
+      # comme MQTT_TOPIC_FILTER : le backend l'exige sans défaut (fail-fast).
+      # Le firmware publie sur pinball/<DEVICE_ID>/input/{button,plunger} ;
+      # le `+` matche n'importe quel device, le `#` button+plunger.
+      MQTT_BORNE_INPUT_TOPIC_FILTER: "pinball/+/input/#"
       # Identifiant du canal borne partagé par les 3 écrans. LITTÉRAL (pas
       # dashboard) car il DOIT correspondre au VITE_BORNE_ID gravé au build des
       # images front (défaut "flipper-cabinet-1"). Le mettre au dashboard
