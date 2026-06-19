@@ -42,6 +42,11 @@ services:
   mqtt:
     image: eclipse-mosquitto:2
     restart: unless-stopped
+    # Port hôte FIXE (et non aléatoire) : l'ESP32 des boutons physiques se
+    # connecte au broker via le WiFi, hors du réseau Docker. Sans ça, seul le
+    # backend (réseau interne `mqtt:1883`) peut joindre le broker.
+    ports:
+      - "1883:1883"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     healthcheck:
