@@ -3,6 +3,10 @@
 !.env.example
 .DS_Store
 *.log
+
+# Firmware ESP32 : on committe SEULEMENT le binaire fusionné (firmware/build/
+# firmware.bin), pas les artefacts de build PlatformIO.
+firmware/.pio/
 # Override local (config/secrets de test) — imite l'override généré par Fliphetic
 docker-compose.override.yml
 deploy/docker-compose.override.yml
