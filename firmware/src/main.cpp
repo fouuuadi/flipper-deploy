@@ -69,9 +69,24 @@ void connectWifi() {
 }
 
 void connectMqtt() {
-  mqtt.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+  // Le broker tourne sur la borne. Par défaut (MQTT_BROKER_HOST vide) on vise la
+  // passerelle WiFi : la borne héberge l'AP FLIPHETIC_CAB0, donc sa gateway EST
+  // la borne (= le broker). Évite de coder une IP en dur — et l'IP Tailscale de
+  // la borne (100.x) est de toute façon injoignable depuis le WiFi de l'ESP32.
+  const bool hasStaticHost = strlen(MQTT_BROKER_HOST) > 0;
+  const IPAddress gateway = WiFi.gatewayIP();
+  if (hasStaticHost) {
+    mqtt.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+  } else {
+    mqtt.setServer(gateway, MQTT_BROKER_PORT);
+  }
   while (!mqtt.connected()) {
-    Serial.printf("[mqtt] connecting to %s:%d ...", MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+    if (hasStaticHost) {
+      Serial.printf("[mqtt] connecting to %s:%d ...", MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+    } else {
+      Serial.printf("[mqtt] connecting to gateway %s:%d ...", gateway.toString().c_str(),
+                    MQTT_BROKER_PORT);
+    }
     if (mqtt.connect(DEVICE_ID)) {
       Serial.println(" ok");
     } else {
@@ -86,11 +101,9 @@ void connectMqtt() {
 // Fail-fast : si la config d'environnement n'a pas été injectée (variables
 // vides), on bloque avec un message clair plutôt que de boucler en silence.
 void requireConfig() {
-  if (strlen(WIFI_SSID) == 0 || strlen(MQTT_BROKER_HOST) == 0) {
+  if (strlen(WIFI_SSID) == 0) {
     while (true) {
-      Serial.println(
-          "[FATAL] config manquante : definir WIFI_SSID / MQTT_BROKER_HOST "
-          "(variables d'environnement, cf. README)");
+      Serial.println("[FATAL] WIFI_SSID manquant (cf. README / platformio.ini)");
       delay(2000);
     }
   }

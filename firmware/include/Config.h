@@ -9,6 +9,12 @@
 #define WIFI_PASSWORD ""
 #endif
 
+// MQTT_BROKER_HOST optionnel : vide → le firmware vise la passerelle WiFi (la
+// borne, qui héberge l'AP FLIPHETIC_CAB0). cf. connectMqtt() dans main.cpp.
+#ifndef MQTT_BROKER_HOST
+#define MQTT_BROKER_HOST ""
+#endif
+
 // --- Mapping boutons → GPIO (ESP32) ---------------------------------------
 // L'`id` publié sur MQTT est interprété côté backend (cf. contrat). Le firmware
 // reste agnostique du jeu : il dit juste « tel id pressé/relâché ».
