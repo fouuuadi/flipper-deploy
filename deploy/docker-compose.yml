@@ -42,10 +42,11 @@ services:
   mqtt:
     image: eclipse-mosquitto:2
     restart: unless-stopped
-    # Pas de port hôte fixe : sur la borne PARTAGÉE, exposer `1883:1883` entre en
-    # conflit avec les autres groupes (un seul peut réserver le port) → le broker
-    # crashloop. Le backend joint le broker en interne (`mqtt:1883`). Pour brancher
-    # l'ESP32 il faudra un broker partagé externe (cf. README), pas un port fixe.
+    # Port hôte fixe : l'ESP32 (WiFi, hors réseau Docker) doit joindre le broker.
+    # On le réintroduit après avoir retiré le firmware (#6) pour isoler la vraie
+    # cause du crashloop : si stable maintenant, c'était le firmware, pas le port.
+    ports:
+      - "1883:1883"
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     healthcheck:
