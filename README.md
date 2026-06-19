@@ -2,9 +2,10 @@
 
 Déploiement de la stack **Flipper Virtuel** sur une borne **Fliphetic**.
 
-Ce repo ne contient **pas de code** : seulement le manifeste Fliphetic et un
-Docker Compose qui tire des **images déjà publiées** (aucun build sur la borne).
-Le code vit dans `Flipper_front` et `Flipper_back`.
+Ce repo contient le manifeste Fliphetic + un Docker Compose qui tire des
+**images déjà publiées** (aucun build serveur des apps), **et** le firmware
+ESP32 (PlatformIO) flashé sur la puce au Load. Le code applicatif vit dans
+`Flipper_front` / `Flipper_back`.
 
 ## Ce que ça lance
 
@@ -61,6 +62,21 @@ lit `DB_*` → le mot de passe est sous deux noms, même valeur) :
 > (`main-latest`), `BACKEND_IMAGE_TAG` (`latest`).
 >
 > ⚠️ Ne jamais committer de `.env` (gitignored).
+
+## Firmware ESP32 (boutons physiques)
+
+À la racine : `platformio.ini` + `src/` + `lib/` + `include/` (copie de
+`Flipper_firmware`). Au **Load**, Fliphetic flashe l'ESP32 avec ce firmware : il
+lit les boutons (GPIO) et publie chaque appui sur MQTT
+(`pinball/<device>/input/button`), consommé par le backend.
+
+⚠️ L'ESP32 est **partagé** entre groupes : chaque Load reflashe la puce. Si un
+autre groupe a loadé depuis, **reload ce projet** pour récupérer ton firmware
+(sinon l'ESP32 publie le format d'un autre groupe et tes boutons ne remontent pas).
+
+Variables (dashboard) lues au build du firmware via `build_flags` :
+`WIFI_SSID`, `WIFI_PASSWORD`, `MQTT_BROKER_IP` (IP réseau de la borne),
+`MQTT_BROKER_PORT`, `DEVICE_ID`.
 
 ## Tester en local
 
