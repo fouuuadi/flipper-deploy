@@ -3,9 +3,6 @@
 !.env.example
 .DS_Store
 *.log
-
-# Firmware ESP32 (PlatformIO) — build local
-.pio/
 # Override local (config/secrets de test) — imite l'override généré par Fliphetic
 docker-compose.override.yml
 deploy/docker-compose.override.yml
