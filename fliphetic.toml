@@ -21,8 +21,9 @@ file          = "deploy/docker-compose.yml"
 ready_timeout = 90
 
 # Firmware des boutons physiques : la borne flashe ce binaire sur le device
-# « esp32 » à chaque Load. Le .bin est buildé + committé par la CI
-# (.github/workflows/firmware.yml). baud 115200 (le défaut 921600 fait planter
+# « esp32 » à chaque Load. Sources dans le repo Flipper_firmware ; le .bin est
+# buildé depuis ce repo + committé ici par la CI (.github/workflows/firmware.yml,
+# déclenchée à chaque push firmware). baud 115200 (le défaut 921600 fait planter
 # certains flashs). required = false → un Load continue si l'ESP32 est absent.
 [esp32.esp32]
 firmware   = "firmware/build/firmware.bin"

@@ -1,15 +1,15 @@
 name: Build ESP32 firmware
 
-# Compile le firmware des boutons et committe le binaire fusionné dans le repo.
-# La borne flashe ce binaire au Load — elle ne compile jamais (cf. doc Fliphetic
-# esp32-firmware + le bloc [esp32.esp32] de fliphetic.toml).
+# Le code source du firmware vit dans le repo Flipper_firmware (source unique).
+# Ce workflow le clone, compile le profil `prod`, fusionne le binaire et le
+# committe dans firmware/build/firmware.bin — que Fliphetic flashe au Load
+# (la borne clone ce repo et lit le .bin dans l'arbre git ; cf. fliphetic.toml).
+#
+# Déclenché par Flipper_firmware à chaque push (repository_dispatch), ou à la main.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "firmware/**"
-      - "!firmware/build/**"
+  repository_dispatch:
+    types: [firmware-updated]
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,7 @@ jobs:
   firmware:
     runs-on: ubuntu-latest
     steps:
+      # checkout de CE repo : c'est ici qu'on committe le binaire.
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -28,17 +29,21 @@ jobs:
       - name: Install PlatformIO and esptool
         run: pip install platformio esptool
 
-      - name: Build
+      # La source unique du firmware : on la clone au build (pas de copie ici).
+      - name: Clone firmware sources
+        run: git clone --depth 1 https://github.com/fouuuadi/Flipper_firmware.git firmware-src
+
+      - name: Build (prod profile)
         # Le mot de passe WiFi vient du secret GitHub WIFI_PASS — jamais dans les
-        # sources (repo public). Il finit quand même gravé dans le binaire
-        # committé : garde une passphrase AP dédiée, pas un mot de passe réutilisé.
+        # sources (repos publics). Il finit gravé dans le binaire committé : garde
+        # une passphrase AP dédiée, pas un mot de passe réutilisé.
         env:
           PLATFORMIO_BUILD_FLAGS: -DWIFI_PASSWORD='"${{ secrets.WIFI_PASS }}"'
-        run: pio run --project-dir firmware
+        run: pio run -e prod --project-dir firmware-src
 
-      - name: Merge into a single image
+      - name: Merge into a single flashable image
         run: |
-          BUILD=firmware/.pio/build/esp32dev
+          BUILD=firmware-src/.pio/build/prod
           mkdir -p firmware/build
           esptool --chip esp32 merge_bin -o firmware/build/firmware.bin \
             0x1000  "$BUILD/bootloader.bin" \
@@ -51,5 +56,5 @@ jobs:
           git config user.email "firmware-ci@users.noreply.github.com"
           git add firmware/build/firmware.bin
           git diff --staged --quiet && echo "no change" && exit 0
-          git commit -m "ci: rebuild ESP32 firmware [skip ci]"
+          git commit -m "ci: rebuild ESP32 firmware from Flipper_firmware [skip ci]"
           git push
